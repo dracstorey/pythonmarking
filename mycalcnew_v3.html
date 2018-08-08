@@ -1,0 +1,979 @@
+<html>
+
+<script>
+
+var flatten_code = function (expr)
+{
+   keywords = ["if", "for", "print", "while", "import", "turtle.forward", "turtle.right", "input"];
+   function_list = []
+   input_array = [2,9,4];
+   input_pointer = 0;
+   output_array = []
+   output_pointer = 0
+   var i = 0;
+   var c = "";
+   var output_str = "";
+   var curr_indent = 0;
+   var error_str = "";
+   var bool_stack = []
+   var import_list= [];
+   var turtle_x = 0;
+   var turtle_y = 0;
+   var turtle_angle = 0;
+   var function_defs = []
+   var add_function = function (name, code_str, params) {
+        function_defs.push({
+            name: name,
+            code: code_str,
+			params: params
+        });
+		}
+
+   // Gets a boolean expression in Python by looking for the : at the end
+   var get_bool_expr = function()
+	{
+	   my_expr = ""
+	   while ((expr[i] != ":") && i < expr.length)
+	   {
+	      my_expr = my_expr + expr[i];
+	      i++
+	   }
+	   // Move to end of line return
+	   while (!(/\n/.test(expr[i])) && i < expr.length)
+		{ 
+			i++
+		}  
+	   return  (evaluate(parse(lex(output_str+my_expr))))
+
+	}; // End of get_bool_expr function
+	
+	
+	// Function to check the number of indentations
+   var check_indent_value = function(curr_indent){
+   var indent = 0;
+   while (/\t/.test(expr[i+1]))
+	{ 
+		indent = indent + 1; 
+		i++
+	};
+	return (indent - curr_indent)
+    };// End of funtion check_indent_value
+	
+	var check_indent_value2 = function(curr_indent,val){
+    var indent = 0;
+	//alert (expr.charCodeAt(val+1));
+    while (/\t/.test(expr[val+1]))
+    { 
+        indent = indent + 1; 
+        val++
+    };
+	return (indent - curr_indent)
+    };// End of funtion check_indent_value2 (not using i)
+
+	
+	// Function to ignore a block of code until either indent is one less or a key word is met.
+   var ignore_block = function (ind)
+   {
+		b_indents = 0;
+		while ((b_indents >= 0) && (i < expr.length))
+		{
+			c = expr[i];
+			if (/\n/.test(c))
+			{
+				b_indents = check_indent_value(ind); 
+			}
+				i++
+		};
+	};  // End of ignore_block function
+
+	
+	
+	// FLATTENING OF KEYWORD STRUCTURES
+	var flat_structure = function (key)
+	{
+		 b1 = ""
+		 b2 = ""
+		 
+		 // IF ... THEN STRUCTURE FLATTENING
+		if (key.toLowerCase() == "if")
+		{
+			bool_stack[curr_indent] = get_bool_expr();
+			//alert (expr.charCodeAt(i));
+			curr_indent = curr_indent + 1;
+			// Get section of code which is run when true.
+			true_str = ""
+			false_str = ""
+			// check indent is at least curr_indent and the line does not contain ELSE
+			bool_else = true;
+			k = i;
+			// Get code structure which finishes with an indent less than we go in with or we find an ELSE clause
+			while ((check_indent_value2(curr_indent,k) >= 0) && i <= expr.length )
+			{
+				tmp_line = ""
+				j = 1;
+				while (!(/\n/.test(expr[k+j]))) 
+				{ 
+					tmp_line = tmp_line + expr[k+j];
+					j = j + 1
+				}  
+				tmp_line = tmp_line + expr[k+j];
+				true_str = true_str + "" + tmp_line.substring(1, tmp_line.length);
+									//test_vals = ""
+									//for (p = 0; p < tmp_line.length; p++)
+									//{
+									//	test_vals = test_vals + " " + tmp_line.charCodeAt(p)
+									//}
+									//alert (test_vals);
+				k = k + j 
+			}	
+			tmp_line = ""
+			j = 1;
+			while (!(/\n/.test(expr[k+j]))) 
+			{ 
+				tmp_line = tmp_line + expr[k+j];
+				j = j + 1
+			} 
+			k = k + j ;
+			if (/else:/.test(tmp_line.toLowerCase()) )
+			{
+				// Get code structure which finishes with an indent if we have hit an else clause
+				while ((check_indent_value2(curr_indent, k) >= 0) && k < expr.length )
+				{
+						tmp_line = ""
+						j = 1;
+						while (!(/\n/.test(expr[k+j])) && k+j < expr.length ) 
+						{ 
+							tmp_line = tmp_line + expr[k+j];
+							j = j + 1
+						}  
+						if (k+j < expr.length)
+						{
+							tmp_line = tmp_line + expr[k+j];
+						}
+						false_str = false_str + "" + tmp_line.substring(1, tmp_line.length);
+						k = k + j 
+					}
+				}
+			i = k;
+			if (bool_stack[curr_indent-1].trim() == "true")
+			{
+				// expr is trus_str + code below IF clause
+				expr = true_str + expr.substring(k, expr.length);
+			}
+			else
+			{
+				// expr is false_str + code below IF clause
+				expr = false_str + expr.substring(k, expr.length);
+			}
+			curr_indent = curr_indent - 1;
+			expr = expr.trim();
+			i = 0;
+			
+		} // End of the IF structure flattening
+		
+		
+		
+		
+		// TURTLE FORWARD 
+		else if(key.toLowerCase() ==  "turtle.forward")
+		{
+			my_expr = ""
+			while (expr[i] == "(" && i < expr.length)
+			{ 
+				i++
+			}  
+			while ((expr[i] != ")") && i < expr.length)
+			{
+				my_expr = my_expr + expr[i];
+				i++
+			}
+			// Move to end of line return
+			while (!(/\n/.test(expr[i])) && i < expr.length)
+			{ 
+				i++
+			}  
+			calc = Math.round(parseInt((evaluate(parse(lex(output_str+ " " + my_expr))))) * (Math.sin(turtle_angle/180*Math.PI)))
+			turtle_x = turtle_x + calc 
+			output_str = output_str +  " " + " turtle_x = " + turtle_x + " " 
+			calc = Math.round(parseInt(evaluate(parse(lex(output_str+ " " + my_expr)))) * (Math.cos(turtle_angle/180*Math.PI)))
+			turtle_y = turtle_y + calc
+			output_str = output_str +  " turtle_y = " + turtle_y + " " 
+		}
+		
+		//TURTLE RIGHT 
+		else if(key.toLowerCase() ==  "turtle.right")
+		{
+			my_expr = ""
+			while (expr[i] == "(" && i < expr.length)
+			{ 
+				i++
+			}  
+			while ((expr[i] != ")") && i < expr.length)
+			{
+				my_expr = my_expr + expr[i];
+				i++
+			}
+			// Move to end of line return
+			while (!(/\n/.test(expr[i])) && i < expr.length)
+			{ 
+				i++
+			}  
+			my_val = parseInt(evaluate(parse(lex(output_str+ " " + my_expr))))
+			turtle_angle = turtle_angle + parseInt(evaluate(parse(lex(output_str+ " " + my_expr))))
+		}
+		
+		//IMPORT PYTHON LIBRARIES
+		else if (key.toLowerCase() ==  "import")
+		{
+			my_expr = ""
+			// Move to end of line return
+			while (!(/\n/.test(expr[i])) && i < expr.length)
+			{ 
+				my_expr = my_expr + expr[i];
+				i++
+			}  
+			my_expr = my_expr.trim();
+			import_list[import_list.length] = my_expr;
+			if(my_expr == "turtle")
+			{
+				output_str = output_str + "turtle_x = 0 turtle_y = 0";
+			}
+		}
+		
+		
+		// FOR ... LOOP FLATTENING
+		else if (key.toLowerCase() ==  "for")
+		{
+			my_expr = "";
+			// Move to in and make sure spaces around it
+			while (!(/\sin\s/.test(my_expr)) && i < expr.length)
+			{ 
+				my_expr = my_expr + expr[i];
+				i++;
+			}  
+			looper = (my_expr.substring(0,my_expr.length-3)).trim();
+			// Move to range and remove the key word
+			my_expr = "";
+			while (!(/range/.test(my_expr)) && i < expr.length)
+			{ 
+				my_expr = my_expr + expr[i];
+				i++
+			}  
+			// move to end of line and then deconstruct the (x,y) string
+			my_expr = "";
+			while (expr[i] != ":" &&  i < expr.length)
+			{ 
+				my_expr = my_expr + expr[i];
+				i++
+			}  
+			my_expr = my_expr.trim();
+			k = 0;
+			while (my_expr[k] != "(" &&  k < my_expr.length)
+			{
+				k++;
+			};
+			k++;
+			// Get start of loop value
+			start_loop = "";
+			while (my_expr[k] != "," && k < my_expr.length)
+			{
+				start_loop = start_loop + my_expr[k];
+				k++;
+			}  
+			start_loop = parseInt(evaluate(parse(lex(output_str + " " + start_loop.trim()))));
+			end_loop = "";
+			k++;
+			// Get end of loop value
+			while (my_expr[k] != ")" &&  k < my_expr.length)
+			{
+				end_loop = end_loop + my_expr[k];
+				k++;
+			}  
+			end_loop = parseInt(evaluate(parse(lex(output_str + " " + end_loop.trim()))));;
+			// Get the block and replace any counts with the counter value.
+			curr_indent = curr_indent + 1
+			// Set value of k so we don't disturb i
+			// Move to end of line return
+			while (!(/\n/.test(expr[i])) && i < expr.length)
+			{ 
+				i++;
+			}  
+			k = i;
+			// Get code structure which finishes with a demoted indent 
+			loop_str = ""
+			while ((check_indent_value2(curr_indent,k) >= 0) && k <= expr.length )
+			{
+				tmp_line = ""
+				j = 1;
+				while (!(/\n/.test(expr[k+j])) && k+j < expr.length) 
+				{ 
+					tmp_line = tmp_line + expr[k+j];
+					j = j + 1;
+				}  
+				if (k+j < expr.length)
+				{
+				tmp_line = tmp_line + expr[k+j];
+				}
+				loop_str = loop_str + "" + tmp_line.substring(1, tmp_line.length);
+				k = k + j ;
+			};
+			for_str_flattened = ""
+			i = k;
+			for (counter = start_loop; counter< end_loop; counter++)
+			{
+				for_str_flattened = for_str_flattened + String.fromCharCode(10) + (loop_str.trim()).replace("count", counter);
+			}
+			expr = for_str_flattened + expr.substring(k, expr.length); 
+			curr_indent = curr_indent - 1;
+			expr = expr.trim();
+			i = 0;
+		}
+		
+		// INPUT key values - black box checking values
+		else if (key.toLowerCase() ==  "input")
+		{
+			output_str = output_str + input_array[input_pointer] + String.fromCharCode(10);
+			input_pointer++;
+			while (!(/\n/.test(expr[i])) && i < expr.length) 
+			{
+				i ++
+			}
+		}
+		
+		
+		// PRINT key values - black box checking values
+		else if (key.toLowerCase() ==  "print")
+		{
+			my_expr = ""
+			while (!(/\n/.test(expr[i])) && i < expr.length) 
+			{
+				my_expr = my_expr + expr[i];
+				i++;
+			}
+			 try {
+					my_val = evaluate(parse(lex(output_str+ " " + my_expr)));
+					output_array[output_pointer] = my_val
+					} 
+			catch (e) {output_array[output_pointer] = my_expr}
+			output_pointer++;
+		}
+		
+		
+		
+		// WHILE key values - black box checking values
+		else if (key.toLowerCase() ==  "while")
+		{
+			// Get boolean expression
+			bool_expr = "";
+			while (expr[i] != ":" &&  i < expr.length)
+			{ 
+				bool_expr = bool_expr + expr[i];
+				i++
+			}  
+			new_expr = "while " + bool_expr + ":" + String.fromCharCode(10)
+			k = i + 1;
+			
+			curr_indent = curr_indent + 1
+			while_str = ""
+			while ((check_indent_value2(curr_indent,k) >= 0) && k <= expr.length )
+				{
+					tmp_line = ""
+					j = 1;
+					while (!(/\n/.test(expr[k+j]))) 
+					{ 
+						tmp_line = tmp_line + expr[k+j];
+						j = j + 1
+					}  
+					tmp_line = tmp_line + expr[k+j];
+					// Code to run
+					while_str = while_str + "" + tmp_line.substring(1, tmp_line.length);
+					//code to use in next expression
+					new_expr = new_expr + tmp_line.substring(0, tmp_line.length)
+					k = k + j 
+				};
+			i = k;
+			if (evaluate(parse(lex(output_str+ " " + bool_expr))).trim() == "true")
+			{			
+				expr =  while_str + String.fromCharCode(10) + new_expr + expr.substring(i, expr.length); 
+			}
+			else
+			{
+				expr = expr.substring(i, expr.length);
+			}
+			curr_indent = curr_indent - 1;
+			expr = expr.trim();
+			i = 0;
+		}
+		
+	}; //End of function flat_Structure
+	
+	
+
+	//GET_BLOCK ... gets a block of code from the expr code; Exits either when either a keyword is found or reaches the end of the expression.
+	var get_block = function()
+   {
+		var curr_word = "";
+		var block_str = "";
+		var bKeyword = false;
+		// Replace all double quotes with a single quote.
+		expr = expr.replace(/"/g,"'");
+		while ((i < expr.length) && !bKeyword)
+		{
+			if (/input/.test(curr_word))
+			{
+				key = "input";
+				bKeyword = true;
+				y = 0;
+				inp_name = ""
+				while (!/\=/.test(inp_name) && y < block_str.length)
+				{
+					inp_name = inp_name + block_str[y];
+					y++;
+				}
+			}
+			c = expr[i]
+			if (/\n/.test(c))
+			{
+				// New code to evaluate as we go along!
+				block_str2 = block_str + curr_word + " ";
+				if (/[(.+)\=(.+)]/.test(block_str2) && !(/(.+)\=\=(.+)/.test(block_str2)))
+				{
+					block_str = block_str + evaluate(parse(lex(output_str+ " " + curr_word))) + " ";
+					output_str = output_str + block_str;
+					block_str = ""
+					curr_word = "";
+					i++;
+				}
+				else
+				{
+					block_str = block_str + curr_word + " ";
+					curr_word = "";
+					i++
+				}
+			}
+			else if (/\s/.test(c))
+			{
+				if (!keywords.includes(curr_word.toLowerCase()))
+				{
+					block_str = block_str + curr_word + " "
+					curr_word = "";
+					i++;
+				}
+				else
+				{
+					output_str = output_str + " " + block_str;
+					key = curr_word
+					bKeyword = true
+				}
+			}
+			// Check if the word is a function identifier
+			else if (function_list.includes(curr_word.toLowerCase()))
+			{
+				// Replace function call with code
+				//bKeyword = true;
+				function_word = curr_word.trim()
+				new_code = ""
+				s = i - (block_str.length + curr_word.length)
+				for (var fnc in function_defs) 
+				{
+					if (function_defs[fnc].name = curr_word.trim())
+					{
+						new_code = function_defs[fnc].code
+						
+						//Move past the bracket
+						while (expr[i] != "(" &&  i < expr.length)
+						{
+							i++;
+						};
+						i++;
+
+						// Get the parameter values the code is called with
+						act_list = []
+						act = ""
+						while (expr[i].trim() != ")" && i < expr.length)
+						{
+							while (expr[i] != "," && expr[i] != ")" && i < expr.length)
+							{
+								act = act + expr[i];
+								i++;
+							}  
+							act_list[act_list.length] = act.trim()
+							act = ""
+							// If end bracket reached then drop out of loop so don't go on .. condition is met
+							if (expr[i] != ")" )
+							{
+								i++;
+							}
+						}
+						// Replace parameters with values
+						for (my_count=0; my_count < function_defs[fnc].params.length; my_count++)
+						{
+							rep_val = function_defs[fnc].params[my_count]
+							re = new RegExp(rep_val,"g");
+							new_code = new_code.replace(re, act_list[my_count])
+						}
+						
+						f = i + 1
+						expr =  new_code + expr.substring(f, expr.length)
+						i = 0;
+						curr_word = ""
+					}
+				}
+			}
+			else if (keywords.includes(curr_word.toLowerCase()))
+			{
+				output_str = output_str + " " + block_str;
+				key = curr_word
+				bKeyword = true
+			}
+			else
+			{
+				curr_word = curr_word + c;
+				i++
+			};
+			if (i == expr.length)
+			{
+				block_str = block_str + " " + curr_word; 
+				output_str = output_str + " " + block_str;
+				bKeyWord = false
+				key = ""
+			}
+		}
+		return key
+   }; // End of function - get_block
+   
+   
+   // Strtip out any funtion definitions from the code and put them the function_defs data structrure
+   var get_functions = function()
+   {
+   	curr_word = ""
+	c = ""
+	while (i < expr.length )
+	{
+		c = expr[i]
+		curr_word = curr_word + c;
+		if (/\s/.test(c) || /\n/.test(c))
+		{
+			if (curr_word.toLowerCase() == "def ")
+			{
+				// Start of function value
+				s = i - 3
+				
+				// get function definition
+				my_expr = "";
+				while ((expr[i] != ":") && i < expr.length)
+				{
+					my_expr = my_expr + expr[i];
+					i++;
+				}
+				while (!(/\n/.test(expr[i])) && i < expr.length)
+				{
+					i++;
+				}  
+				
+				
+				// Gets the function name and parameters and adds them to the function_defs data structure
+				my_expr = my_expr.trim();
+				k = 0;
+				name = ""
+				
+				//Get the name of the function
+				while (my_expr[k] != "(" &&  k < my_expr.length)
+				{
+					name = name + my_expr[k]
+					name.trim();
+					k++;
+				};
+				k++;
+				
+				// Get the parameters of the function
+				param_list = []
+				param_list_counter = 0;
+				param = ""
+				while (my_expr[k].trim() != ")" && k < my_expr.length)
+				{
+					while (my_expr[k] != "," && my_expr[k] != ")" && k < my_expr.length)
+					{
+						param = param + my_expr[k];
+						k++;
+					}  
+					param_list[param_list_counter] = param.trim()
+					param_list_counter++
+					param = ""
+					// If end bracket reached then drop out of loop so don't go on .. condition is met
+					if (my_expr[k] != ")" )
+					{
+						k++;
+					}
+				}
+				
+				// Get the code for the function
+				k = i ;
+				curr_indent = curr_indent + 1
+				code_str = ""
+				while ((check_indent_value2(curr_indent,k) >= 0) && k <= expr.length )
+				{
+					tmp_line = ""
+					j = 1;
+					while (!(/\n/.test(expr[k+j]))) 
+					{ 
+						tmp_line = tmp_line + expr[k+j];
+						j = j + 1
+					}  
+					tmp_line = tmp_line + expr[k+j];
+					// Code to run
+					code_str = code_str + "" + tmp_line.substring(1, tmp_line.length);
+					k = k + j 
+				};
+				i = k 
+				// Add name, code and param list to the data structure
+				add_function(name,code_str, param_list)
+				function_list[function_list.length] = name;
+				name = ""
+				params = []
+				code_str = ""
+				curr_indent = curr_indent - 1
+				// End of function value
+				f = i + 1
+				// Remove function from expr 
+				expr = expr.substring(0,s) + expr.substring(f,expr.length);
+			}
+			curr_word = "";
+		}	
+	i++
+	}
+	curr_word = "";
+	c = "";
+	i = 0;
+   };
+   
+   
+// Start code
+	get_functions();
+	while ((i < expr.length))
+	{
+		my_key = get_block()
+		if (my_key != "")
+		{
+			flat_structure(my_key)
+		}
+	}		
+    return output_str;
+};
+
+var evaluate = function (parseTree) {
+
+    var operators = {
+        "+": function (a, b) { return a + b; },
+        "-": function (a, b) {
+            if (typeof b === "undefined") return -a;
+            return a - b;
+        },
+        "*": function (a, b) { return a * b; },
+        "/": function (a, b) { return a / b; },
+        "%": function (a, b) { return a % b; },
+        "^": function (a, b) { return Math.pow(a, b); },
+	"<": function (a,b)  { if (a<b) return true; return false},
+	">": function (a,b)  { if (a>b) return true; return false},
+	"<=": function (a,b) { if (a <= b) return true; return false},
+        "==": function (a,b) { if (a == b) return true; return false},
+        ">=": function (a,b) { if (a >= b) return true; return false},
+        "!=": function (a,b) { if (a != b) return true; return false},
+        "and": function (a,b) { if (a && b) return true; return false},
+	"or": function (a,b) { if (a || b) return true; return false}
+    };
+
+    var variables = {
+        pi: Math.PI,
+        e: Math.E
+    };
+
+    var functions = {
+        sin: Math.sin,
+        cos: Math.cos,
+        tan: Math.cos,
+        asin: Math.asin,
+        acos: Math.acos,
+        atan: Math.atan,
+        abs: Math.abs,
+        round: Math.round,
+        ceil: Math.ceil,
+        floor: Math.floor,
+        log: Math.log,
+        exp: Math.exp,
+        sqrt: Math.sqrt,
+        max: Math.max,
+        min: Math.min,
+        random: Math.random
+    };
+    var args = {
+    };
+
+    var parseNode = function (node) {
+        if (node.type === "number") return node.value;
+        else if (operators[node.type]) {
+            if (node.left) return operators[node.type](parseNode(node.left), parseNode(node.right));
+            return operators[node.type](parseNode(node.right));
+        }
+        else if (node.type === "identifier") {
+            var value = args.hasOwnProperty(node.value) ? args[node.value] : variables[node.value];
+            if (typeof value === "undefined") throw node.value + " is undefined";
+            return value;
+        }
+        else if (node.type === "assign") {
+            variables[node.name] = parseNode(node.value);
+        }
+        else if (node.type === "call") {
+            for (var i = 0; i < node.args.length; i++) node.args[i] = parseNode(node.args[i]);
+            return functions[node.name].apply(null, node.args);
+        }
+        else if (node.type === "function") {
+            functions[node.name] = function () {
+                for (var i = 0; i < node.args.length; i++) {
+                    args[node.args[i].value] = arguments[i];
+                }
+                var ret = parseNode(node.value);
+                args = {};
+                return ret;
+            };
+        }
+    };
+
+    var output = "";
+    for (var i = 0; i < parseTree.length; i++) {
+        var value = parseNode(parseTree[i]);
+        if (typeof value !== "undefined") output += value + "\n";
+    }
+    return output;
+};
+
+var parse = function (tokens) {
+    var symbols = {},
+    symbol = function (id, nud, lbp, led) {
+        var sym = symbols[id] || {};
+        symbols[id] = {
+            lbp: sym.lbp || lbp,
+            nud: sym.nud || nud,
+            led: sym.lef || led
+        };
+    };
+
+    var interpretToken = function (token) {
+        var sym = Object.create(symbols[token.type]);
+        sym.type = token.type;
+        sym.value = token.value;
+        return sym;
+    };
+
+    var i = 0, token = function () { return interpretToken(tokens[i]); };
+    var advance = function () { i++; return token(); };
+
+    var expression = function (rbp) {
+        var left, t = token();
+        advance();
+        if (!t.nud) throw "Unexpected token" + t.type;
+        left = t.nud(t);
+        while (rbp < token().lbp) {
+            t = token();
+            advance();
+            if (!t.led) throw "Unexpected token: " + t.type;
+            left = t.led(left);
+        }
+        return left;
+    };
+
+    var infix = function (id, lbp, rbp, led) {
+        rbp = rbp || lbp;
+        symbol(id, null, lbp, led || function (left) {
+            return {
+                type: id,
+                left: left,
+                right: expression(rbp)
+            };
+        });
+    },
+    prefix = function (id, rbp) {
+        symbol(id, function () {
+            return {
+                type: id,
+                right: expression(rbp)
+            };
+        });
+    };
+
+
+    symbol(",");
+    symbol(")");
+    symbol("(end)");
+
+    symbol("number", function (number) {
+        return number;
+    });
+    symbol("identifier", function (name) {
+        if (token().type === "(") {
+            var args = [];
+            if (tokens[i + 1].type === ")") advance();
+            else {
+                do {
+                    advance();
+                    args.push(expression(2));
+                } while (token().type === ",");
+                if (token().type !== ")") throw "Expected closing parenthesis ')'";
+            }
+            advance();
+            return {
+                type: "call",
+                args: args,
+                name: name.value
+            };
+        }
+        return name;
+    });
+
+    symbol("(", function () {
+        value = expression(2);
+        if (token().type !== ")") throw "Expected closing parenthesis ')'";
+        advance();
+        return value;
+    });
+
+   prefix("-", 7);
+   infix("^", 6, 5);
+   infix("*", 4);
+   infix("/", 4);
+   infix("%", 4);
+   infix("+", 3);
+   infix("-", 3);
+   infix("<",3);
+   infix (">",3);
+   infix ("<=",3);
+   infix ("==",3);
+   infix (">=",3);
+   infix ("!=",3);
+   infix ("or",4);
+   infix ("and",4);
+
+    infix("=", 1, 2, function (left) {
+        if (left.type === "call") {
+            for (var i = 0; i < left.args.length; i++) {
+                if (left.args[i].type !== "identifier") throw "Invalid argument name";
+            }
+            return {
+                type: "function",
+                name: left.name,
+                args: left.args,
+                value: expression(2)
+            };
+        } else if (left.type === "identifier") {
+            return {
+                type: "assign",
+                name: left.value,
+                value: expression(2)
+            };
+        }
+        else throw "Invalid lvalue";
+    });
+
+    var parseTree = [];
+    while (token().type !== "(end)") {
+        parseTree.push(expression(0));
+    }
+    return parseTree;
+};
+
+var lex = function (input) {
+    var isOperator = function (c) { return /[+\-*\/\^%=(),<>!]/.test(c); },
+        isDigit = function (c) { return /[0-9]/.test(c); },
+        isWhiteSpace = function (c) { return /\s/.test(c); },
+	isComment = function (c) {return /[#]/.test(c);},
+	isReturn = function (c) {return /[~]/.test(c)},
+        isIdentifier = function (c) { return typeof c === "string" && !isOperator(c) && !isDigit(c) && !isWhiteSpace(c); };
+
+    var tokens = [], c, i = 0;
+    var advance = function () { return c = input[++i]; };
+    var addToken = function (type, value) {
+        tokens.push({
+            type: type,
+            value: value
+        });
+    };
+    while (i < input.length) {
+        c = input[i];
+	if (isComment(c)) {advance();while (!isReturn(c)) advance();advance()}
+        else if (isWhiteSpace(c)) advance();
+        else if (isOperator(c)) {
+            var idn = c;
+            while (isOperator(advance())) idn += c; 
+            if (idn.length > 1)
+	   {
+	      addToken(idn);
+	   }
+	   else
+	   {
+              addToken(idn);
+	   }
+            
+        }
+        else if (isDigit(c)) {
+            var num = c;
+            while (isDigit(advance())) num += c;
+            if (c === ".") {
+                do num += c; while (isDigit(advance()));
+            }
+            num = parseFloat(num);
+            if (!isFinite(num)) throw "Number is too large or too small for a 64-bit double.";
+            addToken("number", num);
+        }
+        else if (isIdentifier(c)) {
+            var idn = c;
+            while (isIdentifier(advance())) idn += c;
+	    if ((idn=="or") || (idn=="and"))
+            {addToken(idn);}
+	    else
+               {addToken("identifier", idn);}
+        }
+        else throw "Unrecognized token.";
+    }
+    addToken("(end)");
+    return tokens;
+};
+
+function do_parsing(expr) {
+
+   try {
+   var unpacked = flatten_code(expr)
+   //var tokens = lex(unpacked);
+   //var parseTree = parse(tokens);
+   //var output = evaluate(parseTree);
+   //var my_out = "";
+   //my_out = parseTree[0].type + ":" + parseTree[0].args + ":" + parseTree[0].value;
+   return unpacked;
+   } catch (e) {
+   return e;
+}
+};
+
+function check_if(c)
+{
+
+
+}
+
+function do_this()
+{
+   my_val = document.getElementById("myexpr").value;
+   my_out =do_parsing (my_val);
+   my_out =  (evaluate(parse(lex(my_out))))
+   document.getElementById("result").innerHTML = my_out
+}
+
+</script>
+<body>
+<p> Input expression:<textarea id='myexpr' rows='15' col='12'></textarea><button onClick='do_this()'>Click</button></p>
+
+<div id = 'result' ></div>
+
+</body>
+
+
+<html>
